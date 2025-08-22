@@ -246,8 +246,7 @@ This file handles loading and saving configuration settings to a file (`~/.lazyd
     *   `fopen(config_path, "r")`: Opens the config file for reading.
     *   If it fails (returns `NULL`), it means the file doesn't exist, so it calls `save_config()` to create a default one.
     *   `fgets(line, sizeof(line), f)`: Reads the file line by line into a buffer.
-    *   `sscanf(line, "TARGET_FQBN=%127[^
-]", target_fqbn)`: This is a powerful parsing function from `<stdio.h>`. It tries to match the format string against the `line`.
+    *   `sscanf(line, "TARGET_FQBN=%127[^\\n]", target_fqbn)`: This is a powerful parsing function from `<stdio.h>`. It tries to match the format string against the `line`.
         *   `TARGET_FQBN=` matches the literal text.
         *   `%127[^
 ]` is the important part: it reads up to 127 characters that are *not* a newline (`\n`) and stores them in the `target_fqbn` variable. This extracts the value from the `KEY=VALUE` format.
@@ -262,4 +261,158 @@ This file handles loading and saving configuration settings to a file (`~/.lazyd
 
 ---
 
-... and so on for all other files. I will now write the complete, final version of `code.md` to your filesystem.
+### `src/completion.c`
+
+This file handles the tab-completion logic for commands and their arguments.
+
+**Functions:**
+
+#### `void trigger_completion(void)`
+*   **Purpose**: To start the completion process when the user presses Tab.
+*   **Explanation**: It checks if the user is typing a command name or an argument (by looking for a space with `strchr`) and calls the appropriate specific completion function (`complete_command` or a command's registered `complete` function). If any suggestions are found, it changes the app mode to `mode_completion`.
+
+#### `void clear_completion(void)`
+*   **Purpose**: To stop the completion process.
+*   **Explanation**: It resets the completion state variables and sets the mode back to `mode_command`.
+
+#### `void cycle_completion(int direction)`
+*   **Purpose**: To move to the next or previous suggestion in the list.
+*   **Explanation**: It increments or decrements the `selected_completion` index, wrapping around if it goes past the beginning or end of the list. It then calls `apply_completion` to show the new selection in the command bar.
+
+#### `void apply_completion(void)`
+*   **Purpose**: To fill the command buffer with the currently selected suggestion.
+*   **Explanation**: It finds the last space in the command buffer with `strrchr` to determine if it's a command or an argument being completed. It then uses `snprintf` or `strcat` to replace the partially typed text with the full suggestion.
+
+#### `void draw_completion_box(void)`
+*   **Purpose**: To display the list of suggestions.
+*   **Explanation**: This is an `ncurses` drawing function. It loops through the `current_completions.suggestions` array and prints them to the `status_win`. It uses `wattron(..., A_REVERSE)` to highlight the `selected_completion` with a reversed background/foreground color.
+
+#### `complete_command`, `complete_fqbn_arg`, etc.
+*   **Purpose**: These are the functions that actually generate the completion suggestions.
+*   **Explanation**: Each function has a hardcoded list of possible values (e.g., an array of FQBNs or baud rates). It loops through this list and uses `strncmp` (from `<string.h>`) to find all items that start with the text the user has typed so far. Each match is added to the `CompletionResult` struct.
+
+---
+
+### `src/sketches.c`
+
+This file manages finding, displaying, and interacting with `.ino` sketch files.
+
+**Functions:**
+
+#### `void load_sketches(const char *path)`
+*   **Purpose**: To find all `.ino` files in the current directory.
+*   **Explanation**:
+    *   `opendir(path)`: From `<dirent.h>`, this opens a directory stream.
+    *   `readdir(d)`: In a loop, this reads the next entry (file or subdirectory) from the stream.
+    *   `strstr(dir->d_name, ".ino")`: Checks if the filename contains `.ino`.
+    *   `strncpy(...)`: If it's a sketch, its name is copied into the global `sketches` array.
+    *   `closedir(d)`: Closes the directory stream.
+
+#### `void open_in_editor(const char *filename)`
+*   **Purpose**: To open the selected sketch file in a text editor.
+*   **Explanation**:
+    *   `endwin()`: Temporarily stops `ncurses`.
+    *   `getenv("EDITOR")`: Gets the user's preferred editor from the environment variables. Defaults to `vim`.
+    *   `snprintf(cmd, ...)`: Constructs the shell command (e.g., `vim my_sketch.ino`).
+    *   `system(cmd)`: Executes the command, launching the editor.
+    *   `initscr()` and `refresh()`: Restores the `ncurses` UI after the editor is closed.
+
+#### `void handle_sketches_input(Panel *self, int key)`
+*   **Purpose**: To handle user input when the sketches panel is focused.
+*   **Explanation**: A `switch` statement handles key presses:
+    *   `KEY_UP`/`'k'` and `KEY_DOWN`/`'j'`: Decrement or increment the `selected_sketch` index to move the selection.
+    *   `'\n'` (Enter): Calls `open_in_editor` for the selected sketch.
+    *   `'c'`: Calls `compile_sketch` for the selected sketch.
+    *   `'u'`: Calls `upload_sketch` for the selected sketch.
+
+#### `void draw_sketches_panel(Panel *self, bool has_focus)`
+*   **Purpose**: To draw the list of sketches in its panel.
+*   **Explanation**: A standard `ncurses` drawing function. It loops through the `sketches` array and prints each filename. It uses `wattron` to highlight the `selected_sketch`. The highlight is different depending on whether the panel `has_focus` or not.
+
+---
+
+### `src/logs.c`
+
+This file manages a simple, in-memory logging system to display status messages to the user.
+
+**Functions:**
+
+#### `void add_log(const char *msg)`
+*   **Purpose**: To add a new message to the log buffer.
+*   **Explanation**: 
+    *   If the log buffer (`log_lines`) is full, it shifts all existing lines up by one, discarding the oldest message. This is done with a `for` loop and `strcpy` (from `<string.h>`).
+    *   It then copies the new message into the last available slot using `strncpy` for safety.
+
+#### `void clear_logs(void)`
+*   **Purpose**: To clear all messages from the logs.
+*   **Explanation**: It simply resets `log_count` to 0.
+
+#### `void draw_logs_panel(Panel *self, bool has_focus)`
+*   **Purpose**: To draw the log messages in their panel.
+*   **Explanation**: A standard `ncurses` drawing function that loops through the `log_lines` array and prints each one to the `log_win` window.
+
+---
+
+### `src/colors.c` & `src/color_picker.c`
+
+These files manage the theme and color selection.
+
+**Functions:**
+
+#### `void hex_to_rgb(const char *hex_str, rgb_color *clr)` (`colors.c`)
+*   **Purpose**: To convert a hex color string (e.g., "FF0000") to an RGB structure.
+*   **Explanation**:
+    *   `strtol(hex_str, NULL, 16)`: A standard C function from `<stdlib.h>` that converts a string to a `long int`. The `16` specifies that the input string is in base 16 (hexadecimal).
+    *   Bitwise operations (`>>` and `&`) are used to extract the red, green, and blue byte values from the resulting integer.
+
+#### `int rgb_to_256(rgb_color *color)` (`colors.c`)
+*   **Purpose**: To convert an RGB color value to the nearest equivalent in the 256-color terminal palette.
+*   **Explanation**: It uses a standard formula to map the 0-255 RGB values to the 6x6x6 color cube that terminals use for their 256-color mode.
+
+#### `void draw_color_picker_page(void)` (`color_picker.c`)
+*   **Purpose**: To draw the grid of 256 colors for the user to choose from.
+*   **Explanation**: It uses a nested `for` loop to iterate through the 16x16 grid of colors. For each cell, it calls `init_pair` to create a color pair where the foreground and background are the same color, effectively creating a solid block of color. It then prints a space character using that color pair. It also draws a `<>` marker on the currently `selected_x` and `selected_y` cell.
+
+#### `void handle_color_picker_input(int key)` (`color_picker.c`)
+*   **Purpose**: To handle navigation on the color picker page.
+*   **Explanation**: A `switch` statement handles arrow keys to change `selected_x` and `selected_y`. When the user presses Enter, it calculates the selected color index, calls `apply_theme` to change the UI colors, and then calls `switch_page(0)` to return to the dashboard.
+
+---
+
+### `src/status.c`
+
+This file is responsible for drawing the status bar at the bottom of the screen.
+
+**Functions:**
+
+#### `void draw_status(WINDOW *win)`
+*   **Purpose**: To draw the entire status bar.
+*   **Explanation**: This is a complex drawing function that assembles the status bar from several pieces of information.
+    *   It first determines the background color and mode string (`"NORMAL >>"` or `"COMMAND >>"`) based on `app_state.mode`.
+    *   `wbkgd(win, ...)`: An `ncurses` function that sets the background properties for an entire window.
+    *   It then draws the mode string on the far left.
+    *   It loops through the `page_registry` to draw the `F1:Dash`, `F2:Boards`, etc. tabs. It uses a different color pair (`CP_HIGHLIGHT_TAB`) for the currently active page.
+    *   It constructs a `right_status` string using `snprintf` with information like the target board, port, and focused panel.
+    *   Finally, it prints this `right_status` string aligned to the far right of the window.
+
+---
+
+### `src/state.c`
+
+This file has no functions. Its only purpose is to define and initialize the single, global instance of the `appstate` struct. This ensures that there is one central, authoritative source for the application's state that all other files can access (by including `state.h`).
+
+---
+
+### `src/serial.c`
+
+This file is intended to provide a serial monitor, but the functionality is not yet implemented.
+
+**Functions:**
+
+#### `start_serial_monitor`, `stop_serial_monitor`, `update_serial`
+*   **Purpose**: These are placeholder functions.
+*   **Explanation**: They currently do nothing. A full implementation would require using system-specific libraries (like `termios` on Linux) to open, read from, and write to a serial port device file (e.g., `/dev/ttyUSB0`).
+
+#### `draw_serial_panel`
+*   **Purpose**: To draw the placeholder serial monitor panel.
+*   **Explanation**: It simply draws a box with the title "Serial Monitor" and a "Waiting for data..." message.
