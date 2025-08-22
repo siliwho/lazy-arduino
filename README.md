@@ -1,5 +1,4 @@
-
----
+# Lazy Arduino
 
 <table>
   <tr>
@@ -12,287 +11,98 @@
   </tr>
 </table>
 
----
-***
-
-**Lazy Arduino** is a lightweight **terminal-based user interface (TUI)** for `arduino-cli`. It aims to make Arduino development accessible for users who are new to the command line, and for those working over **SSH** or on **low-resource systems** that cannot run the full Arduino IDE.
-
----
-
-## Key Features
-
-- Minimalist, ncurses-powered TUI
-- Board detection and selection
-- Sketch browsing and selection
-- Compile and upload with logs
-- Serial monitor integration
-- Modular design with page-based navigation
-- Designed for SSH and low-end environments
-
----
-
-## Project Goals
-
-- Abstract away the complexity of `arduino-cli` commands
-- Provide a fast, responsive UI that mirrors the Arduino IDE structure
-- Enable seamless use over terminal (SSH/local) without heavy GUI tools
-
----
-
-## Setup and Status
-
-### Completed
-
-- [x] CLI Skeleton
-- [x] Sketch selection panel (basic implementation)
-
-### In Progress
-
-- [x] Add interaction/functionality to Sketch panel
-- [x] Status bar (`status.c`) – real-time sketch/board/page info
-
-### Next Up
-
-- [ ] Config management (`config.c/.h`)
-- [ ] TUI Framework setup
-- [ ] `arduino-cli` wrapper module
-- [ ] Board/Port detection screen
-- [ ] Compile/upload screen with logs
-- [ ] Serial monitor
-
-### Current Interface
-
-#### Normal Mode
-![alt text](assets/normalmode.png)
-
-#### Command Mode
-![alt text](assets/commandmode.png)
----
-
-## File Structure
-
-```
-
-lazy-arduino/
-├── include/
-│   ├── arduino.h
-│   ├── board.h
-│   ├── color_picker.h
-│   ├── colors.h
-│   ├── command.h        <-- NEW: For command registry
-│   ├── config.h
-│   ├── logs.h
-│   ├── pages.h          <-- MODIFIED: For page registry
-│   ├── panel.h          <-- NEW: For panel system
-│   ├── serial.h
-│   ├── sketches.h
-│   ├── state.h          <-- MODIFIED: State uses indices now
-│   ├── status.h
-│   └── ui.h
-├── src/
-│   ├── arduino.c        <-- MODIFIED: Old process_cmd removed
-│   ├── board.c          <-- MODIFIED: draw function signature changed
-│   ├── color_picker.c
-│   ├── colors.c
-│   ├── command.c        <-- NEW: Command implementations
-│   ├── config.c
-│   ├── logs.c           <-- MODIFIED: draw function signature changed
-│   ├── main.c           <-- MODIFIED: Main loop is now generic
-│   ├── pages.c          <-- MODIFIED: Manages pages and panels
-│   ├── serial.c         <-- MODIFIED: draw function signature changed
-│   ├── sketches.c       <-- MODIFIED: Input/draw functions changed
-│   ├── state.c
-│   ├── status.c
-│   └── ui.c
-└── ... (other files)
-```
-i have added more Features so more files
-
----
-
-## USB Device Support on WSL
-
-If you're using **WSL (Windows Subsystem for Linux)** to interface with USB microcontrollers, you must forward the USB ports using [`usbipd-win`](https://github.com/dorssel/usbipd-win/releases).
-
-### Steps:
-
-1. Install `usbipd-win`
-2. List USB devices:
-```
-
-usbipd list
-
-```
-3. Bind the target device:
-```
-
-usbipd bind --busid <BUSID>
-
-```
-4. Attach device in WSL:
-```
-
-usbipd attach --busid <BUSID> --wsl
-
-```
-
-Repeat this process every time you connect a new microcontroller.
-
----
-
-## TUI Pages Overview
-
-| Key      | Page             | Description                                  |
-|----------|------------------|----------------------------------------------|
-| `F1`     | Dashboard         | Sketches, Boards, Logs, Serial Monitor       |
-| `F2`     | Board Manager     | View/install boards and cores                |
-| `F3`     | Library Manager   | Manage libraries                             |
-| `F4`     | Example Sketches  | Browse/import official or core examples      |
-| `F5`     | Settings          | Configure default board, port, theme, editor |
-
----
-
-## Navigation Model
-
-- `F1–F5`: Switch between pages
-- `Tab`: Cycle between panels within a page
-- `q`: Quit current page or program
-- `Enter` / `e`: Edit or open selection
-- `c`: Compile sketch
-- `u`: Upload to board
-- `s`: Save config
-
----
-
-## Status Bar (`status.c`)
-
-A persistent bottom bar displays:
-
-**[Sketch: blink.ino]  [Board: ESP32 DevKit]  [Port: /dev/ttyUSB0]  [Page: Dashboard]  [F1–F5 | Tab | q]**
-
-
-This provides live feedback on current selections and available shortcuts.
-
-### Rendering Example:
-```c
-mvwprintw(status_win, 0, 1,
-  "[Sketch: %s]  [Board: %s]  [Port: %s]  [Page: %s]",
-   selected_sketch, selected_board, selected_port, current_page_name);
-````
-
----
-
-## Page Layouts
-
-### F1 — Dashboard
-
-```
-+------------------+------------------------+
-|   Sketches       |     Boards             |
-|   [blink.ino]    |   [ESP32 DevKit]       |
-|   [wifi.ino]     |   [Arduino Uno]        |
-+------------------------------------------+
-|   Compile / Upload Logs                  |
-|   [Success: Uploaded at 18:43]           |
-+------------------------------------------+
-|   Serial Monitor                         |
-|   [temp = 36.4]                          |
-+------------------------------------------+
-```
-
-### F2 — Board Manager
-
-```
-+----------------------------------------+
-| Installed Boards / Ports               |
-| [ESP32 DevKit] on /dev/ttyUSB0         |
-| [Arduino Uno] on /dev/ttyUSB1          |
-+----------------------------------------+
-| Available Cores                        |
-| [✓] esp32 @ 2.0.11   [Install]         |
-| [ ] attiny85         [Install]         |
-+----------------------------------------+
-| Board Actions                          |
-| (u) Uninstall  (i) Install (r) Refresh |
-+----------------------------------------+
-```
-
-### F3 — Library Manager
-
-```
-+----------------------------------------+
-| Installed Libraries                    |
-| [✓] Servo       [Uninstall]            |
-| [✓] Adafruit_GFX [Uninstall]           |
-+----------------------------------------+
-| Available Libraries                    |
-| [ ] OneWire     [Install]              |
-| [ ] FastLED     [Install]              |
-+----------------------------------------+
-| (s) Search   (i) Install   (u) Uninstall |
-+----------------------------------------+
-```
-
-### F4 — Examples Browser
-
-```
-+--------------------------+
-| Categories               |
-| [Arduino]                |
-| [ESP32]                  |
-| [Adafruit]               |
-+--------------------------+
-| Files                    |
-| blink.ino                |
-| wifi_scan.ino            |
-| servo_test.ino           |
-+--------------------------+
-| (Enter) Load  (Tab) Focus |
-+--------------------------+
-```
-
-### F5 — Settings Page
-
-```
-+------------------------------------+
-| Editor         : nano              |
-| Default Board  : ESP32 DevKit      |
-| Serial Port    : /dev/ttyUSB0      |
-| Sketch Folder  : ~/Arduino         |
-| Theme          : Arduino Classic   |
-+------------------------------------+
-| (e) Edit  (Tab) Next Field (s) Save |
-+------------------------------------+
-```
-
----
-
-## Future Roadmap
-
-* JSON-based persistent configuration system
-* Plugin system for OTA upload, etc.
-* Git integration for sketch versioning
-* Error highlighting and color-coded logs
-
----
-
-## Contributing
-
-Pull requests are welcome. Please fork the repository and submit improvements via feature branches. If you plan large changes, open an issue for discussion first.
-
----
-
-## License
-
-This project will be released under the **MIT License** — free to use, modify, and distribute, as long as attribution is preserved. See `LICENSE` for full terms.
-
----
-
-## Acknowledgments
-
-* [`arduino-cli`](https://github.com/arduino/arduino-cli) — official CLI
-* [`ncurses`](https://invisible-island.net/ncurses/) — terminal UI foundation
-* Community feedback and contributions
-
----
-
+**Lazy Arduino** is a lightweight, terminal-based user interface (TUI) for the `arduino-cli`. It provides a user-friendly way to manage Arduino projects, boards, and libraries directly from the command line, making it ideal for developers who work over SSH or on resource-constrained systems.
+
+## Features
+
+- **TUI Interface:** A clean and intuitive ncurses-based interface.
+- **Sketch Management:** List, create, and edit `.ino` sketches.
+- **Board Management:** Detect and list connected Arduino boards.
+- **Compilation and Uploading:** Compile and upload sketches to your target board.
+- **Command Mode:** An interactive command mode for advanced operations.
+- **Auto-completion:** Tab-completion for commands and arguments.
+- **Theming:** Customize the look and feel of the application with themes and colors.
+- **Configuration:** Persistent configuration for your target board and port.
+
+## Code Structure
+
+The project is organized into several modules, each with a specific responsibility. Here's a breakdown of the key modules and their roles:
+
+### Core Modules
+
+- **`main.c`**: The entry point of the application. It initializes the UI, manages the main event loop, and handles user input.
+- **`ui.c` / `ui.h`**: Manages the ncurses UI, including window creation, resizing, and color themes.
+- **`state.c` / `state.h`**: Defines the application's state, including the current mode (normal, command, completion), focused panel, and command buffer.
+- **`pages.c` / `pages.h`**: Manages the different pages of the application (e.g., Dashboard, Color Picker). It uses a registry of `Page` structs to define the behavior of each page.
+- **`panel.h`**: Defines the `Panel` struct, which represents a rectangular section of the UI with a title and content.
+
+### Functionality Modules
+
+- **`arduino.c` / `arduino.h`**: Provides functions for interacting with `arduino-cli`, such as compiling and uploading sketches.
+- **`sketches.c` / `sketches.h`**: Manages Arduino sketches, including loading, displaying, and opening them in an editor.
+- **`board.c` / `board.h`**: Handles the detection and listing of connected Arduino boards.
+- **`command.c` / `command.h`**: Implements the command processing system, including a registry of available commands.
+- **`completion.c` / `completion.h`**: Provides the auto-completion logic for commands and their arguments.
+- **`config.c` / `config.h`**: Manages the loading and saving of the application's configuration.
+- **`logs.c` / `logs.h`**: Provides a logging facility for displaying messages to the user.
+- **`serial.c` / `serial.h`**: (In progress) Intended for serial monitor functionality.
+- **`colors.c` / `colors.h`**: Provides functions for color manipulation and theming.
+- **`color_picker.c` / `color_picker.h`**: Implements the color picker page.
+- **`status.c` / `status.h`**: Manages the status bar at the bottom of the screen.
+
+### Execution Flow
+
+1.  **Initialization:** `main.c` calls `init_ui()` to set up the ncurses environment and `load_config()` to load the user's settings.
+2.  **Main Loop:** The application enters a `while` loop in `main.c` that waits for user input.
+3.  **Input Handling:**
+    - In **Normal Mode**, input is passed to the current page's input handler (`handle_current_page_input()`).
+    - Pressing `:` switches to **Command Mode**.
+    - In **Command Mode**, user input is captured in the command buffer. Pressing `Enter` executes the command using `process_command()`.
+    - Pressing `Tab` in **Command Mode** triggers **Completion Mode**.
+4.  **Drawing:** On each iteration of the main loop, `draw_current_page()` is called to render the UI for the active page. This, in turn, calls the `draw_func` for each panel on the page.
+5.  **Termination:** Pressing `q` in **Normal Mode** exits the application, calling `end_ui()` to clean up the ncurses environment.
+
+## Build and Run
+
+To build and run the project, you'll need `ncurses` and `arduino-cli` installed.
+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/your-username/lazy-arduino.git
+    cd lazy-arduino
+    ```
+2.  **Build the project:**
+    ```bash
+    make
+    ```
+3.  **Run the application:**
+    ```bash
+    ./lazy-arduino
+    ```
+
+## Usage
+
+### Navigation
+
+- **`F1` - `F6`**: Switch between different pages.
+- **`Tab`**: Cycle through the panels on the current page.
+- **Arrow Keys (`Up`/`Down` or `k`/`j`)**: Navigate within a panel.
+- **`q`**: Quit the application.
+
+### Commands
+
+To enter command mode, press `:`. Here are some of the available commands:
+
+- **`:newfile <filename>`**: Create a new `.ino` file.
+- **`:color <#RRGGBB>`**: Set the theme color using a hex code.
+- **`:setfqbn <fqbn>`**: Set the fully qualified board name (e.g., `arduino:avr:uno`).
+- **`:setport <port>`**: Set the serial port (e.g., `/dev/ttyUSB0`).
+- **`:setbaud <rate>`**: Set the baud rate for the serial monitor.
+
+### Configuration
+
+The application stores its configuration in `~/.lazyduino/config.ini`. This file is created automatically and can be edited manually. The following settings are available:
+
+- **`TARGET_FQBN`**: The default FQBN for compiling and uploading.
+- **`TARGET_PORT`**: The default serial port.
+- **`TARGET_BAUD`**: The default baud rate.

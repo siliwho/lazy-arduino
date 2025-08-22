@@ -28,13 +28,14 @@ void load_anime(void) {
     loading_idx = (loading_idx + 1) % (strlen(spinner));
 }
 
+// src/status.c
 
 void draw_status(WINDOW *win) {
     if (!win) return;
 
     int max_y, max_x;
     getmaxyx(win, max_y, max_x);
-    (void)max_y;
+    (void)max_y; // Unused variable
 
     int status_color_pair = CP_STATUS_NORMAL;
     const char *mode_str = "NORMAL >>";
@@ -43,34 +44,31 @@ void draw_status(WINDOW *win) {
         mode_str = "COMMAND >>";
     }
 
-    wattron(win, A_BOLD);
-
+    // Set the background for the entire bar and erase
     wbkgd(win, COLOR_PAIR(status_color_pair));
     werase(win);
 
-     wattron(win, COLOR_PAIR(status_color_pair));
+    // --- Draw Mode (Bold) ---
+    wattron(win, COLOR_PAIR(status_color_pair) | A_BOLD);
     mvwprintw(win, 0, 1, "%s", mode_str);
-    wattroff(win, COLOR_PAIR(status_color_pair));
 
-   /* wattron(win, COLOR_PAIR(status_color_pair) | A_BOLD); */
-   /*  mvwprintw(win, 0, 1, "%s", mode_str); */
-   /*  wattroff(win, COLOR_PAIR(status_color_pair) | A_BOLD); */
-
+    // --- Draw Page Tabs (Bold) ---
     int current_pos = strlen(mode_str) + 2;
-    int tab_f = 1;
     for (int i = 0; i < NUM_PAGES; i++) {
-        if(!page_registry[i].show_in_tabs) continue;
+        if (!page_registry[i].show_in_tabs) continue;
+
         if (i == app_state.current_idx) {
-            wattron(win, COLOR_PAIR(CP_HIGHLIGHT_TAB));
+            // Active tab
+            wattron(win, COLOR_PAIR(CP_HIGHLIGHT_TAB) | A_BOLD);
         } else {
-            wattron(win, COLOR_PAIR(status_color_pair));
+            // Inactive tab
+            wattron(win, COLOR_PAIR(status_color_pair) | A_BOLD);
         }
-        /* if(page_registry[i].name != "Color Picker") mvwprintw(win, 0, current_pos, " F%d:%s ", i + 1, page_registry[i].name); */
         mvwprintw(win, 0, current_pos, " F%d:%s ", i + 1, page_registry[i].name);
         current_pos += strlen(page_registry[i].name) + 6;
     }
 
-    // Draw Right-aligned Status
+    // --- Draw Right-aligned Status (Bold) ---
     char right_status[256];
     if (is_loading) {
         snprintf(right_status, sizeof(right_status), "Working... %c", spinner[loading_idx]);
@@ -83,11 +81,73 @@ void draw_status(WINDOW *win) {
             snprintf(right_status, sizeof(right_status), "Board: %s", board_status_str);
         }
     }
-    /* wattron(win, COLOR_PAIR(status_color_pair)); */
+
+    // Set attributes for the right-aligned text explicitly
+    wattron(win, COLOR_PAIR(status_color_pair) | A_BOLD);
     mvwprintw(win, 0, max_x - strlen(right_status) - 1, "%s", right_status);
-    /* wattroff(win, A_BOLD); */
+
     wnoutrefresh(win);
 }
+
+/* void draw_status(WINDOW *win) { */
+/*     if (!win) return; */
+
+/*     int max_y, max_x; */
+/*     getmaxyx(win, max_y, max_x); */
+/*     (void)max_y; */
+
+/*     int status_color_pair = CP_STATUS_NORMAL; */
+/*     const char *mode_str = "NORMAL >>"; */
+/*     if (app_state.mode == mode_command) { */
+/*         status_color_pair = CP_STATUS_COMMAND; */
+/*         mode_str = "COMMAND >>"; */
+/*     } */
+
+/*     wattron(win, A_BOLD); */
+
+/*     wbkgd(win, COLOR_PAIR(status_color_pair)); */
+/*     werase(win); */
+
+/*      wattron(win, COLOR_PAIR(status_color_pair)); */
+/*     mvwprintw(win, 0, 1, "%s", mode_str); */
+/*     wattroff(win, COLOR_PAIR(status_color_pair)); */
+
+/*    /1* wattron(win, COLOR_PAIR(status_color_pair) | A_BOLD); *1/ */
+/*    /1*  mvwprintw(win, 0, 1, "%s", mode_str); *1/ */
+/*    /1*  wattroff(win, COLOR_PAIR(status_color_pair) | A_BOLD); *1/ */
+
+/*     int current_pos = strlen(mode_str) + 2; */
+/*     int tab_f = 1; */
+/*     for (int i = 0; i < NUM_PAGES; i++) { */
+/*         if(!page_registry[i].show_in_tabs) continue; */
+/*         if (i == app_state.current_idx) { */
+/*             wattron(win, COLOR_PAIR(CP_HIGHLIGHT_TAB)); */
+/*         } else { */
+/*             wattron(win, COLOR_PAIR(status_color_pair)); */
+/*         } */
+/*         /1* if(page_registry[i].name != "Color Picker") mvwprintw(win, 0, current_pos, " F%d:%s ", i + 1, page_registry[i].name); *1/ */
+/*         mvwprintw(win, 0, current_pos, " F%d:%s ", i + 1, page_registry[i].name); */
+/*         current_pos += strlen(page_registry[i].name) + 6; */
+/*     } */
+
+/*     // Draw Right-aligned Status */
+/*     char right_status[256]; */
+/*     if (is_loading) { */
+/*         snprintf(right_status, sizeof(right_status), "Working... %c", spinner[loading_idx]); */
+/*     } else { */
+/*         const char *board_status_str = (board_count > 0) ? "Connected" : "No Board"; */
+/*         if (app_state.current_idx == 0) { // If on Dashboard page */
+/*             const char *focus_str = (app_state.focus_idx < 4) ? panel_names[app_state.focus_idx] : "Unknown"; */
+/*             snprintf(right_status, sizeof(right_status), "Board: %s | Port: %s | Focus: %s (TAB)", target_fqbn, target_port, focus_str); */
+/*         } else { */
+/*             snprintf(right_status, sizeof(right_status), "Board: %s", board_status_str); */
+/*         } */
+/*     } */
+/*     /1* wattron(win, COLOR_PAIR(status_color_pair)); *1/ */
+/*     mvwprintw(win, 0, max_x - strlen(right_status) - 1, "%s", right_status); */
+/*     /1* wattroff(win, A_BOLD); *1/ */
+/*     wnoutrefresh(win); */
+/* } */
 
 /* #include "status.h" */
 /* #include "state.h" */

@@ -5,7 +5,8 @@
 
 typedef enum {
     mode_normal,
-    mode_command
+    mode_command,
+    mode_completion
 } appmode;
 
 typedef struct {

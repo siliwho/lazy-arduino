@@ -1,4 +1,5 @@
 #include "command.h"
+#include "completion.h"
 #include "state.h"
 #include "logs.h"
 #include "colors.h"
@@ -36,6 +37,19 @@ void command_set_port(const char *args) {
     }
 }
 
+void command_set_baud(const char *args){
+    if(strlen(args) > 0){
+        strncpy(target_baud, args, sizeof(target_baud) - 1);
+        target_baud[sizeof(target_baud)-1 ] = '\0';
+        save_config();
+        char log_msg[256];
+        snprintf(log_msg, sizeof(log_msg), "Target baud rate set to: %s", target_baud);
+        add_log(log_msg);
+    } else{
+        add_log("Usage: :setbaud <rate>");
+    }
+}
+
 void command_newfile(const char *args) {
     char filename[128] = {0};
     sscanf(args, "%127s", filename);
@@ -45,7 +59,6 @@ void command_newfile(const char *args) {
         return;
     }
 
-    // Safely append .ino extension if not present
     if (!strstr(filename, ".ino")) {
         strncat(filename, ".ino", sizeof(filename) - strlen(filename) - 1);
     }
@@ -69,63 +82,87 @@ void command_newfile(const char *args) {
     }
 }
 
-void command_color_hex(const char *args) {
-    char hex_clr[8] = {0};
-    sscanf(args, "%7s", hex_clr);
+void command_color(const char *args) {
+    if (strlen(args) > 0) {
+        char hex_clr[8] = {0};
+        sscanf(args, "%7s", hex_clr);
 
-    if (strlen(hex_clr) == 6) {
-        // Validate it's a real hex string
-        bool is_valid = true;
-        for(int i = 0; i < 6; i++) {
-            if (!isxdigit(hex_clr[i])) {
-                is_valid = false;
+        if (hex_clr[0] == '#') {
+            memmove(hex_clr, hex_clr + 1, strlen(hex_clr));
+        }
+
+        if (strlen(hex_clr) == 6) {
+            bool is_valid = true;
+            for(int i = 0; i < 6; i++) {
+                if (!isxdigit(hex_clr[i])) {
+                    is_valid = false;
+                    break;
+                }
+            }
+
+            if(is_valid) {
+                char log_msg[64];
+                snprintf(log_msg, sizeof(log_msg), "Set color to #%s", hex_clr);
+                add_log(log_msg);
+                apply_theme_hex(hex_clr);
+            } else {
+                add_log("Error: Invalid hex characters.");
+            }
+        } else {
+            add_log("Error: Invalid hex format. Use #RRGGBB");
+        }
+    } else {
+        for (int i = 0; i < NUM_PAGES; i++) {
+            if (strcmp(page_registry[i].name, "Colors") == 0) {
+                switch_page(i);
                 break;
             }
         }
-
-        if(is_valid) {
-            char log_msg[64];
-            snprintf(log_msg, sizeof(log_msg), "Set color to #%s", hex_clr);
-            add_log(log_msg);
-            apply_theme_hex(hex_clr);
-        } else {
-            add_log("Error: Invalid hex characters.");
-        }
-    } else {
-        add_log("Error: Invalid hex format. Use #RRGGBB");
     }
 }
 
-void command_color_picker(const char *args) {
-    (void)args; // Unused
-    for (int i = 0; i < NUM_PAGES; i++) {
-        if (strcmp(page_registry[i].name, "Colors") == 0) {
-            switch_page(i);
-            break;
-        }
-    }
-}
-
-static const Command command_registry[] = {
-    {":newfile", command_newfile},
-    {":color #", command_color_hex},
-    {":color", command_color_picker},
-    {":setfqbn", command_set_fqbn},
-    {":setport", command_set_port}
+const Command command_registry[] = {
+    {"newfile", "Create a new .ino file", command_newfile, NULL},
+    {"color", "Set theme from a hex color or open color picker", command_color, complete_color_arg},
+    {"setfqbn", "Set the target board FQBN", command_set_fqbn, complete_fqbn_arg},
+    {"setport", "Set the target serial port", command_set_port, complete_port_arg},
+    {"setbaud", "Set the target baud rate", command_set_baud, complete_baud_arg}
 };
-static const int num_commands = sizeof(command_registry) / sizeof(Command);
+const int num_commands = sizeof(command_registry) / sizeof(Command);
+
+const Command* find_command(const char *name){
+    for(int i = 0; i < num_commands; i++){
+        if(strcmp(name, command_registry[i].name) == 0){
+            return &command_registry[i];
+        }
+    }
+    return NULL;
+}
 
 void process_command(const char *input) {
-    for (int i = 0; i < num_commands; i++) {
-        size_t cmd_len = strlen(command_registry[i].name);
-        if (strncmp(input, command_registry[i].name, cmd_len) == 0) {
-            const char *args = input + cmd_len;
-            while (*args == ' ') // Skip whitespace
-                args++;
-            
-            command_registry[i].action(args);
-            return;
-        }
+    char buffer[256];
+    strncpy(buffer, input, sizeof(buffer) - 1);
+    buffer[sizeof(buffer) - 1] = '\0';
+
+    char *cmd_name = buffer;
+    if (cmd_name[0] == ':') {
+        cmd_name++;
     }
-    add_log("Error: Unknown command");
+
+    char *args = strchr(cmd_name, ' ');
+    if(args != NULL){
+        *args = '\0';
+        args++;
+    } else{
+        args = "";
+    }
+
+    const Command* cmd = find_command(cmd_name);
+    if(cmd){
+        cmd->action(args);
+    } else {
+        char log_msg[256];
+        snprintf(log_msg, sizeof(log_msg), "Error: Unknown command '%s'", cmd_name);
+        add_log(log_msg);
+    }
 }
