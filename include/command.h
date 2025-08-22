@@ -15,5 +15,7 @@ typedef struct {
 
 void process_command(const char *input);
 const Command* find_command(const char *name);
+/* void compile_sketch(const char *sketch_path); */
+/* void upload_sketch(const char *sketch_path); */
 
 #endif // COMMAND_H

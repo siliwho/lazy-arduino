@@ -1,3 +1,4 @@
+#include "status.h"
 #include "command.h"
 #include "completion.h"
 #include "state.h"
@@ -6,10 +7,14 @@
 #include "pages.h"
 #include "sketches.h"
 #include "config.h"
+#include "arduino.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+
+void command_compile(const char *args);
+void command_upload(const char *args);
 
 void command_set_fqbn(const char *args) {
     if (strlen(args) > 0) {
@@ -126,7 +131,9 @@ const Command command_registry[] = {
     {"color", "Set theme from a hex color or open color picker", command_color, complete_color_arg},
     {"setfqbn", "Set the target board FQBN", command_set_fqbn, complete_fqbn_arg},
     {"setport", "Set the target serial port", command_set_port, complete_port_arg},
-    {"setbaud", "Set the target baud rate", command_set_baud, complete_baud_arg}
+    {"setbaud", "Set the target baud rate", command_set_baud, complete_baud_arg},
+    {"compile", "Compile the current sketch", command_compile, NULL},
+    {"upload", "Upload the current sketch", command_upload, NULL}
 };
 const int num_commands = sizeof(command_registry) / sizeof(Command);
 
@@ -159,10 +166,48 @@ void process_command(const char *input) {
 
     const Command* cmd = find_command(cmd_name);
     if(cmd){
+        char status[256];
+        strncpy(status, "Executing: ", sizeof(status) - 1);
+        strncat(status, cmd_name, sizeof(status) - strlen(status) - 1);
+        strncat(status, "...", sizeof(status) - strlen(status) - 1);
+        set_status(status);
         cmd->action(args);
+        set_status("Idle");
     } else {
         char log_msg[256];
-        snprintf(log_msg, sizeof(log_msg), "Error: Unknown command '%s'", cmd_name);
+        strncpy(log_msg, "Error: Unknown command '", sizeof(log_msg) - 1);
+        strncat(log_msg, cmd_name, sizeof(log_msg) - strlen(log_msg) - 1);
+        strncat(log_msg, "'", sizeof(log_msg) - strlen(log_msg) - 1);
         add_log(log_msg);
+    }
+}
+
+/* void compile_sketch(const char *sketch_path) { */
+/*     (void)sketch_path; // Suppress unused parameter warning */
+/*     add_log("Compiling sketch..."); */
+/*     // Actual implementation will be added later */
+/* } */
+
+/* void upload_sketch(const char *sketch_path) { */
+/*     (void)sketch_path; // Suppress unused parameter warning */
+/*     add_log("Uploading sketch..."); */
+/*     // Actual implementation will be added later */
+/* } */
+
+void command_compile(const char *args) {
+    (void)args; // Suppress unused parameter warning
+    if (sketch_count > 0) {
+        compile_sketch(sketches[selected_sketch], target_fqbn);
+    } else {
+        add_log("No sketches to compile.");
+    }
+}
+
+void command_upload(const char *args) {
+    (void)args; // Suppress unused parameter warning
+    if (sketch_count > 0) {
+        upload_sketch(sketches[selected_sketch], target_fqbn, target_port);
+    } else {
+        add_log("No sketches to upload.");
     }
 }

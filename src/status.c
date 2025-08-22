@@ -11,8 +11,7 @@
 
 bool is_loading = false;
 static int loading_idx = 0;
-static const char *panel_names[] = {"Sketches", "Boards", "Logs", "Serial"};
-static const char spinner[] = "|/-\\";
+static const char spinner[] = "|/-\"";
 
 void start_loading(void) {
     is_loading = true;
@@ -29,6 +28,13 @@ void load_anime(void) {
 }
 
 // src/status.c
+
+static char status_message[256] = "Idle";
+
+void set_status(const char *message) {
+    strncpy(status_message, message, sizeof(status_message) - 1);
+    status_message[sizeof(status_message) - 1] = '\0';
+}
 
 void draw_status(WINDOW *win) {
     if (!win) return;
@@ -71,15 +77,11 @@ void draw_status(WINDOW *win) {
     // --- Draw Right-aligned Status (Bold) ---
     char right_status[256];
     if (is_loading) {
-        snprintf(right_status, sizeof(right_status), "Working... %c", spinner[loading_idx]);
+        int bar_width = 20;
+        int progress = loading_idx % (bar_width + 1);
+        snprintf(right_status, sizeof(right_status), "[%-*s>%-*s] %d%%", progress, "", bar_width - progress, "", (int)((float)progress / bar_width * 100));
     } else {
-        const char *board_status_str = (board_count > 0) ? "Connected" : "No Board";
-        if (app_state.current_idx == 0) { // If on Dashboard page
-            const char *focus_str = (app_state.focus_idx < 4) ? panel_names[app_state.focus_idx] : "Unknown";
-            snprintf(right_status, sizeof(right_status), "Board: %s | Port: %s | Focus: %s (TAB)", target_fqbn, target_port, focus_str);
-        } else {
-            snprintf(right_status, sizeof(right_status), "Board: %s", board_status_str);
-        }
+        snprintf(right_status, sizeof(right_status), "%s", status_message);
     }
 
     // Set attributes for the right-aligned text explicitly

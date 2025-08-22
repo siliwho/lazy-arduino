@@ -15,7 +15,7 @@ enum {
 };
 
 // Global window pointers
-extern WINDOW *sketch_win, *board_win, *log_win, *serial_win, *status_win, *cmd_win, *comp_win;
+extern WINDOW *top_bar_win, *sketch_win, *board_win, *log_win, *serial_win, *status_win, *cmd_win, *comp_win;
 
 void init_ui(void);
 void end_ui(void);

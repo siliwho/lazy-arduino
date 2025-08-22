@@ -1,9 +1,10 @@
+#include "ui.h"
+#include "top_bar.h"
 #include "board.h"
 #include "command.h"
 #include "pages.h"
 #include "sketches.h"
 #include "state.h"
-#include "ui.h"
 #include "logs.h"
 #include "config.h"
 #include "completion.h"
@@ -51,7 +52,7 @@ void handle_command_mode(int ch) {
             break;
         case '\t':
             trigger_completion();
-            break;
+            break; 
         case 127:
         case KEY_BACKSPACE:
         case 8:
@@ -113,6 +114,7 @@ int main() {
     init_current_page();
 
     while (true) {
+        draw_top_bar(top_bar_win);
         draw_current_page();
         draw_command_bar();
         if (app_state.mode == mode_completion) {
