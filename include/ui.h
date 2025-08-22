@@ -9,11 +9,13 @@ enum {
     CP_HIGHLIGHT_BORDER,
     CP_HIGHLIGHT_TAB,
     CP_STATUS_NORMAL,
-    CP_STATUS_COMMAND
+    CP_STATUS_COMMAND,
+    CP_COMPLETION_BOX,
+    CP_COMPLETION_HEILIGHT
 };
 
 // Global window pointers
-extern WINDOW *sketch_win, *board_win, *log_win, *serial_win, *status_win, *cmd_win;
+extern WINDOW *sketch_win, *board_win, *log_win, *serial_win, *status_win, *cmd_win, *comp_win;
 
 void init_ui(void);
 void end_ui(void);

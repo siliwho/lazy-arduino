@@ -6,6 +6,8 @@
 #include "ui.h"
 #include "logs.h"
 #include "config.h"
+#include "completion.h"
+#include <ctype.h>
 #include <ncurses.h>
 #include <string.h>
 #include <stdbool.h>
@@ -13,7 +15,7 @@
 
 void draw_command_bar() {
     werase(cmd_win);
-    if (app_state.mode == mode_command) {
+    if (app_state.mode == mode_command || app_state.mode == mode_completion) {
         mvwprintw(cmd_win, 0, 0, "%s", app_state.command_buffer);
         wmove(cmd_win, 0, strlen(app_state.command_buffer));
     }
@@ -27,6 +29,71 @@ void check_dependencies() {
         fprintf(stderr, "Please install it to use this application.\n");
         fprintf(stderr, "See: https://arduino.github.io/arduino-cli/latest/installation/\n");
         exit(1);
+    }
+}
+
+void handle_command_mode(int ch);
+void handle_completion_mode(int ch);
+
+void handle_command_mode(int ch) {
+    int len = strlen(app_state.command_buffer);
+    switch (ch) {
+        case '\n':
+            process_command(app_state.command_buffer);
+            app_state.mode = mode_normal;
+            app_state.command_buffer[0] = '\0';
+            curs_set(0);
+            break;
+        case 27: // esc
+            app_state.mode = mode_normal;
+            app_state.command_buffer[0] = '\0';
+            curs_set(0);
+            break;
+        case '\t':
+            trigger_completion();
+            break;
+        case 127:
+        case KEY_BACKSPACE:
+        case 8:
+            if (len > 1) {
+                app_state.command_buffer[len - 1] = '\0';
+            } else if (len == 1) {
+                app_state.command_buffer[0] = '\0';
+                app_state.mode = mode_normal;
+                curs_set(0);
+            }
+            break;
+        default:
+            if (isprint(ch) && len < sizeof(app_state.command_buffer) - 1) {
+                app_state.command_buffer[len] = ch;
+                app_state.command_buffer[len + 1] = '\0';
+            }
+            break;
+    }
+}
+
+void handle_completion_mode(int ch) {
+    switch (ch) {
+        case '\t':
+            cycle_completion(1);
+            break; 
+        case KEY_BTAB:
+            cycle_completion(-1);
+            break;
+        case '\n':
+            apply_completion();
+            clear_completion();
+            break;
+        case 27: // esc
+            clear_completion();
+            app_state.mode = mode_normal;
+            app_state.command_buffer[0] = '\0';
+            curs_set(0);
+            break;
+        default:
+            clear_completion();
+            handle_command_mode(ch);
+            break;
     }
 }
 
@@ -44,52 +111,24 @@ int main() {
     add_log("Welcome to lazy-arduino!");
 
     init_current_page();
-    
-    // Initial draw
-    draw_current_page();
-    draw_command_bar();
-    doupdate();
 
-    int ch;
-    // Fixed event loop - draw first, then wait for input, then process
-    while ((ch = getch()) != EOF) {
-        // Process the input first
-        if (app_state.mode == mode_command) {
-            int len = strlen(app_state.command_buffer);
-            switch (ch) {
-                case '\n':
-                    process_command(app_state.command_buffer);
-                    app_state.mode = mode_normal;
-                    app_state.command_buffer[0] = '\0';
-                    curs_set(0);
-                    break;
-                case 27: // ESC
-                    app_state.mode = mode_normal;
-                    app_state.command_buffer[0] = '\0';
-                    curs_set(0);
-                    break;
-                case KEY_BACKSPACE:
-                case 127: // Common backspace chars
-                case 8:
-                    if (len > 1) { // Keep the leading ':'
-                        app_state.command_buffer[len - 1] = '\0';
-                    } else { // Buffer is only ":", so exit command mode
-                        app_state.mode = mode_normal;
-                        app_state.command_buffer[0] = '\0';
-                        curs_set(0);
-                    }
-                    break;
-                default:
-                    if (ch >= 32 && ch <= 126 && len < sizeof(app_state.command_buffer) - 1) {
-                        app_state.command_buffer[len] = ch;
-                        app_state.command_buffer[len + 1] = '\0';
-                    }
-                    break;
-            }
+    while (true) {
+        draw_current_page();
+        draw_command_bar();
+        if (app_state.mode == mode_completion) {
+            draw_completion_box();
+        }
+        doupdate();
+
+        int ch = getch();
+        if (ch == ERR) continue;
+
+        if (app_state.mode == mode_completion) {
+            handle_completion_mode(ch);
+        } else if (app_state.mode == mode_command) {
+            handle_command_mode(ch);
         } else if (app_state.mode == mode_normal) {
             switch (ch) {
-                case ERR: // This happens on timeout, we can ignore it
-                    break;
                 case KEY_RESIZE:
                     resize_current_page();
                     break;
@@ -103,6 +142,7 @@ int main() {
                 case KEY_F(3): switch_page(2); break;
                 case KEY_F(4): switch_page(3); break;
                 case KEY_F(5): switch_page(4); break;
+                case KEY_F(6): switch_page(5); break;
                 case 'q':
                     end_ui();
                     return 0;
@@ -111,11 +151,6 @@ int main() {
                     break;
             }
         }
-
-        // Then draw the updated state
-        draw_current_page();
-        draw_command_bar();
-        doupdate();
     }
 
     end_ui();

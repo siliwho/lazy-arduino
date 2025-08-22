@@ -2,6 +2,7 @@
 #define PAGES_H
 
 #include "panel.h"
+#include <stdbool.h>
 
 typedef void (*page_init)(void);
 typedef void (*page_drw)(void);
@@ -16,6 +17,7 @@ typedef struct {
     page_ipt ipt;
     page_rsize resize;
     page_dest destroy;
+    bool show_in_tabs;
 } Page;
 
 extern const Page page_registry[];

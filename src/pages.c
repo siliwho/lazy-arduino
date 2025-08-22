@@ -78,13 +78,22 @@ void color_picker_draw() {werase(stdscr); draw_color_picker_page(); wnoutrefresh
 void color_picker_input(int key) { handle_color_picker_input(key); }
 
 const Page page_registry[] = {
-    {"Dashboard", dashboard_init, dashboard_draw, dashboard_handle_input, dashboard_resize, dashboard_destroy},
-    {"Boards", NULL, unimplemented_draw, unimplemented_input, NULL, NULL},
-    {"Libraries", NULL, unimplemented_draw, unimplemented_input, NULL, NULL},
-    {"Cores", NULL, unimplemented_draw, unimplemented_input, NULL, NULL},
-    {"Examples", NULL, unimplemented_draw, unimplemented_input, NULL, NULL},
-    {"Color Picker", color_picker_init, color_picker_draw, color_picker_input, NULL, NULL}
+    {"Dash",     dashboard_init,      dashboard_draw,      dashboard_handle_input, dashboard_resize, dashboard_destroy, true},
+    {"Boards",   NULL,                unimplemented_draw,  unimplemented_input,    NULL,             NULL,              true},
+    {"Libs",     NULL,                unimplemented_draw,  unimplemented_input,    NULL,             NULL,              true},
+    {"Cores",    NULL,                unimplemented_draw,  unimplemented_input,    NULL,             NULL,              true},
+    {"Examples", NULL,                unimplemented_draw,  unimplemented_input,    NULL,             NULL,              true},
+    {"Colors",   color_picker_init,   color_picker_draw,   color_picker_input,     NULL,             NULL,              false}
 };
+
+/* const Page page_registry[] = { */
+/*     {"Dashboard", dashboard_init, dashboard_draw, dashboard_handle_input, dashboard_resize, dashboard_destroy}, */
+/*     {"Boards", NULL, unimplemented_draw, unimplemented_input, NULL, NULL}, */
+/*     {"Libraries", NULL, unimplemented_draw, unimplemented_input, NULL, NULL}, */
+/*     {"Cores", NULL, unimplemented_draw, unimplemented_input, NULL, NULL}, */
+/*     {"Examples", NULL, unimplemented_draw, unimplemented_input, NULL, NULL}, */
+/*     {"Color Picker", color_picker_init, color_picker_draw, color_picker_input, NULL, NULL} */
+/* }; */
 const int NUM_PAGES = sizeof(page_registry) / sizeof(Page);
 
 void init_current_page() {
