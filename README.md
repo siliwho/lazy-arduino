@@ -13,6 +13,12 @@
 
 **Lazy Arduino** is a lightweight, terminal-based user interface (TUI) for the `arduino-cli`. It provides a user-friendly way to manage Arduino projects, boards, and libraries directly from the command line, making it ideal for developers who work over SSH or on resource-constrained systems.
 
+![alt text](image-1.png)
+![alt text](image-2.png)
+![alt text](image-3.png)
+![alt text](image-4.png)
+![alt text](image-6.png)
+
 ## Features
 
 - **TUI Interface:** A clean and intuitive ncurses-based interface.
